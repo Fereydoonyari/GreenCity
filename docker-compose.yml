@@ -1,0 +1,25 @@
+# GreenCity AI – Local Infrastructure
+#
+# Starts PostgreSQL with PostGIS for spatial queries.
+# Application services (API, frontend) run on the host during development.
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: greencity-db
+    environment:
+      POSTGRES_USER: greencity
+      POSTGRES_PASSWORD: greencity
+      POSTGRES_DB: greencity
+    ports:
+      - "5432:5432"
+    volumes:
+      - greencity_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U greencity -d greencity"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  greencity_pgdata:
