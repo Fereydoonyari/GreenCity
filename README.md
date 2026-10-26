@@ -2,25 +2,63 @@
 
 **Decision support for urban green infrastructure.**
 
-GreenCity AI ranks neighborhoods by green deficiency so planners can see *where* to invest and *why*. It combines satellite vegetation (NASA HLS NDVI), OpenStreetMap urban form, optional population rasters, and a deterministic **Green Deficiency Score** — then explains the result in plain language. An optional LLM rewrites narratives; it never recomputes the science.
+GreenCity AI helps planners see *where* neighborhoods need greening and *why*. It ranks areas with an explainable **Green Deficiency Score** built from satellite vegetation (NASA HLS NDVI), OpenStreetMap urban form, and optional population data — then grounds the result in plain-language narratives. An optional LLM rewrites text; it never recomputes the science.
 
-Draw a city, analyse canopy and built form, compare neighborhoods on a map, and export a grounded report.
+[Features](#features) · [Screenshots](#screenshots) · [Architecture](#architecture) · [Tech stack](#tech-stack) · [Quick start](#quick-start)
 
 ---
 
-## Highlights
+## Features
 
-- **Map-first workflow** — register, draw a city boundary, then neighborhood polygons (Leaflet + PostGIS).
-- **Explainable ranking** — 0–100 Green Deficiency Score with contribution breakdown and priority bands (low / medium / high).
-- **Multi-source vegetation** — NASA HLSS30 NDVI when Earthdata credentials are set; otherwise OSM park coverage as a documented fallback.
-- **Urban context** — roads, parks, and buildings from OpenStreetMap (cached Overpass + mirrors).
-- **Map overlays** — vegetation density, park-access distance, Landsat heat exposure (overlays are not extra score weights).
-- **Agent narratives** — optional neighborhood brief, comparison, and climate-aware planting plan grounded in scored facts.
-- **Clean Architecture backend** — domain scoring is independent of FastAPI, SQLAlchemy, and vendor SDKs.
+| Capability | What it delivers |
+|---|---|
+| **Map-first workflow** | Register, draw a city boundary, then neighborhood polygons (Leaflet + PostGIS) |
+| **Explainable ranking** | 0–100 Green Deficiency Score with contribution breakdown and priority bands |
+| **Multi-source vegetation** | NASA HLSS30 NDVI when Earthdata credentials are set; OSM park coverage as fallback |
+| **Urban context** | Roads, parks, and buildings from OpenStreetMap (cached Overpass + mirrors) |
+| **Map overlays** | Vegetation density, park-access distance, Landsat heat exposure |
+| **Agent narratives** | Neighborhood brief, comparison, and climate-aware planting plan grounded in scored facts |
+| **Clean Architecture** | Domain scoring isolated from FastAPI, SQLAlchemy, and vendor SDKs |
+
+---
+
+## Screenshots
+
+### Analysis workspace
+
+Draw neighborhoods, rank deficiency, and inspect score drivers in one view.
+
+![GreenCity analysis workspace with ranking, score breakdown, and vegetation overlay](img/05-analysis-workspace.png)
+
+### Draw a city boundary
+
+Define the study area on an interactive map before adding neighborhoods.
+
+![City boundary polygon drawn over Milan](img/01-draw-city-boundary.png)
+
+### Vegetation density overlay
+
+Satellite / park-derived vegetation shown as a density grid inside the AOI.
+
+![Vegetation density heatmap overlay on the city map](img/02-vegetation-overlay.png)
+
+### Heat exposure overlay
+
+Landsat-based surface temperature context for planners evaluating thermal stress.
+
+![Heat exposure heatmap overlay on the city map](img/03-heat-exposure-overlay.png)
+
+### Score explainability
+
+Priority bands and weighted drivers (built-up ratio, road density, vegetation, green area).
+
+![Green Deficiency Score explainability panel with ranking and contribution bars](img/04-score-explainability.png)
+
+---
 
 ## Scoring model
 
-Four indicators, planner-tunable weights (must sum to 1):
+Four planner-tunable indicators (weights must sum to 1):
 
 | Indicator | Direction |
 |-----------|-----------|
@@ -29,7 +67,9 @@ Four indicators, planner-tunable weights (must sum to 1):
 | Road density | Pressure |
 | Built-up ratio | Pressure |
 
-Each value is normalised (urban benchmarks for a single area, min–max across a cohort of 2+ neighborhoods), mapped to a deficiency component, weighted, and scaled to 0–100. Rank 1 = highest priority.
+Values are normalised (urban benchmarks for a single area, min–max across a cohort of 2+ neighborhoods), mapped to deficiency components, weighted, and scaled to **0–100**. Rank 1 = highest priority.
+
+---
 
 ## Architecture
 
@@ -38,7 +78,7 @@ React (Leaflet)  ──JWT──►  FastAPI  ──►  Domain (GDS, ranking, r
                               │
                               ├── PostgreSQL 16 + PostGIS
                               ├── LangGraph (validate → indicators → score → summarise)
-                              ├── NASA HLS / Landsat (Planetary Computer)
+                              ├── NASA HLS / Landsat
                               └── OpenStreetMap Overpass + WorldPop (optional)
 ```
 
@@ -49,12 +89,14 @@ React (Leaflet)  ──JWT──►  FastAPI  ──►  Domain (GDS, ranking, r
 | **Infrastructure** | PostGIS, imagery, OSM, LangGraph, LLM, email |
 | **Presentation** | REST API + React workspace |
 
-See [docs/architecture](docs/architecture/README.md) and [ADRs](docs/adr/README.md).
+Deeper notes: [docs/architecture](docs/architecture/README.md) · [ADRs](docs/adr/README.md)
+
+---
 
 ## Tech stack
 
-| | |
-|---|---|
+| Area | Stack |
+|------|--------|
 | Backend | Python 3.12, FastAPI, Pydantic, SQLAlchemy, Alembic |
 | Database | PostgreSQL 16 + PostGIS |
 | Spatial / rasters | Shapely, NumPy, Rasterio, earthaccess |
@@ -62,6 +104,8 @@ See [docs/architecture](docs/architecture/README.md) and [ADRs](docs/adr/README.
 | Frontend | React 19, TypeScript, Vite, Leaflet |
 | Auth | JWT + bcrypt |
 | Tests | pytest (unit + API) |
+
+---
 
 ## Quick start
 
@@ -92,7 +136,7 @@ npm run dev
 
 UI: [http://localhost:5173](http://localhost:5173)
 
-Copy [`.env.example`](.env.example) to `.env` if you want to override defaults. The API and Vite app run on the host; only PostGIS runs in Docker.
+Copy [`.env.example`](.env.example) to `.env` to override defaults. Only PostGIS runs in Docker; the API and Vite app run on the host.
 
 ### Optional integrations
 
@@ -105,6 +149,8 @@ Copy [`.env.example`](.env.example) to `.env` if you want to override defaults. 
 
 Change `JWT_SECRET` before any shared deployment.
 
+---
+
 ## Tests
 
 ```bash
@@ -114,15 +160,20 @@ pytest
 
 Scoring, NDVI stages, OSM parsing, job transitions, and report builders are unit-tested with fakes — no NASA or Overpass required in CI.
 
-## Repository
+---
+
+## Repository layout
 
 ```
-├── backend/          FastAPI package `greencity` (Clean Architecture)
-├── frontend/         React + TypeScript planning workspace
-├── docs/             Architecture, ADRs, API notes, diagrams
+├── backend/           FastAPI package `greencity` (Clean Architecture)
+├── frontend/          React + TypeScript planning workspace
+├── docs/              Architecture, ADRs, API notes, diagrams
+├── img/               README screenshots
 ├── docker-compose.yml
 └── .env.example
 ```
+
+---
 
 ## License
 
